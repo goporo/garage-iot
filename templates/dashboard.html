@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT Garage Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 10px;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .total {
+      color: #3498db;
+    }
+
+    .occupied {
+      color: #e74c3c;
+    }
+
+    .available {
+      color: #27ae60;
+    }
+
+    .rate {
+      color: #f39c12;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .section {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .section h2 {
+      margin-bottom: 1.5rem;
+      color: #2c3e50;
+      border-bottom: 2px solid #ecf0f1;
+      padding-bottom: 0.5rem;
+    }
+
+    .garage-map {
+      display: grid;
+      gap: 0.5rem;
+      margin: 1rem 0;
+      justify-content: center;
+    }
+
+    .parking-slot {
+      width: 60px;
+      height: 100px;
+      border: 2px solid #bdc3c7;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.8rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .parking-slot.available {
+      background-color: #d5f4e6;
+      border-color: #27ae60;
+      color: #27ae60;
+    }
+
+    .parking-slot.occupied {
+      background-color: #fadbd8;
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+
+    .parking-slot:hover {
+      transform: scale(1.05);
+    }
+
+    .log-container {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ecf0f1;
+      border-radius: 5px;
+    }
+
+    .log-entry {
+      padding: 0.75rem;
+      border-bottom: 1px solid #ecf0f1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-entry:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    .log-plate {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .log-event {
+      padding: 0.25rem 0.5rem;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+
+    .log-event.enter {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .log-event.exit {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .log-time {
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .refresh-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      margin-bottom: 1rem;
+    }
+
+    .refresh-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .loading {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .header h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚗 IoT Garage Dashboard</h1>
+      <p>Real-time parking management system</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value total" id="total-slots">-</div>
+        <div class="stat-label">Total Slots</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value occupied" id="occupied-slots">-</div>
+        <div class="stat-label">Occupied</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value available" id="available-slots">-</div>
+        <div class="stat-label">Available</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value rate" id="occupancy-rate">-</div>
+        <div class="stat-label">Occupancy Rate</div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="section">
+        <h2>🗺️ Garage Map</h2>
+        <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+        <div id="garage-map" class="garage-map">
+          <div class="loading">Loading garage map...</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🚗 Recent Car Events</h2>
+        <div id="car-log" class="log-container">
+          <div class="loading">Loading car events...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📈 Recent Occupancy Changes</h2>
+      <div id="occupancy-history" class="log-container">
+        <div class="loading">Loading occupancy history...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+
+</html>
