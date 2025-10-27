@@ -2,6 +2,10 @@
 
 A comprehensive Flask-based IoT garage management system with real-time occupancy tracking, car event logging, and a beautiful dashboard interface.
 
+## Architecture
+<img width="1283" height="582" alt="image" src="https://github.com/user-attachments/assets/433a7902-9d88-4a92-bdcb-85c9c20a6765" />
+
+
 ## Features
 
 ### 🚗 Core Functionality
