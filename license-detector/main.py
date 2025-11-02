@@ -13,7 +13,7 @@ from ultralytics import YOLO
 import easyocr
 
 # Configuration
-ESP32_IP = "http://192.168.5.32:81"
+ESP32_IP = "http://192.168.1.10"
 
 
 

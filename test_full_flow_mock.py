@@ -5,12 +5,14 @@ Test script for the complete license plate detection flow
 import requests
 import json
 
+ESP32_IP = "http://192.168.1.10"
+
 # Test 1: Check mock ESP32
 print("=" * 70)
 print("Test 1: Check Mock ESP32 Camera")
 print("=" * 70)
 try:
-    response = requests.get("http://localhost:81/status")
+    response = requests.get(ESP32_IP + "/status")
     print(f"Status: {response.status_code}")
     print(f"Response: {response.json()}")
     print("✓ Mock ESP32 is running\n")
@@ -22,7 +24,7 @@ print("=" * 70)
 print("Test 2: Capture Image from Mock ESP32")
 print("=" * 70)
 try:
-    response = requests.get("http://localhost:81/capture")
+    response = requests.get(ESP32_IP + "/capture")
     print(f"Status: {response.status_code}")
     print(f"Content-Type: {response.headers.get('Content-Type')}")
     print(f"Image size: {len(response.content)} bytes")
@@ -37,7 +39,7 @@ print("=" * 70)
 try:
     response = requests.post(
         "http://localhost:5000/api/detect_plate",
-        json={"event": "enter", "esp32_url": "http://localhost:81"},
+        json={"event": "enter", "esp32_url": ESP32_IP},
         headers={"Content-Type": "application/json"}
     )
     print(f"Status: {response.status_code}")
