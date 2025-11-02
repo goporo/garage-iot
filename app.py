@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 import os
+import sys
 
 app = Flask(__name__)
 
@@ -11,6 +12,23 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Import models and initialize database
 from models import db, Slot, OccupancyHistory, CarEvent
+
+# Import license plate detector
+license_detector_path = os.path.join(basedir, 'license-detector')
+sys.path.append(license_detector_path)
+
+# Change working directory to license-detector to use its YOLO model
+original_cwd = os.getcwd()
+os.chdir(license_detector_path)
+
+from main import LicensePlateDetector
+
+# Initialize license plate detector (in license-detector context)
+detector = LicensePlateDetector()
+
+# Change back to original directory
+os.chdir(original_cwd)
+
 db.init_app(app)
 
 # Create tables
@@ -107,6 +125,65 @@ def add_car_event():
         return jsonify({'success': True, 'plate': plate, 'event': event})
     
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/detect_plate', methods=['POST'])
+def detect_plate():
+    """Fetch image from ESP32, detect license plate, and log car event"""
+    try:
+        if detector is None:
+            return jsonify({'error': 'License plate detector not initialized'}), 500
+        
+        # Get event type from request (default to 'enter')
+        data = request.get_json() if request.is_json else {}
+        event_type = data.get('event', 'enter')
+        esp32_url = data.get('esp32_url', 'http://192.168.5.32:81')
+        
+        if event_type not in ['enter', 'exit']:
+            return jsonify({'error': 'Event must be "enter" or "exit"'}), 400
+        
+        # Fetch image from ESP32
+        print(f"Fetching image from ESP32: {esp32_url}")
+        image = detector.fetch_esp32_image(esp32_url)
+        
+        if image is None:
+            return jsonify({'error': 'Failed to fetch image from ESP32'}), 500
+        
+        # Process image to detect license plates
+        print("Processing image for license plate detection...")
+        results = detector.process_image(image, save_result=True, 
+                                        output_path=os.path.join(basedir, 'data', f'esp32_capture_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.jpg'))
+        
+        if not results:
+            return jsonify({'error': 'No license plate detected', 'success': False}), 200
+        
+        # Get the first detected plate
+        first_plate = results[0]['plate_number']
+        confidence = results[0]['confidence']
+        
+        print(f"Detected plate: {first_plate} (confidence: {confidence})")
+        
+        # Log car event
+        new_event = CarEvent(
+            plate=first_plate,
+            event=event_type,
+            timestamp=datetime.utcnow()
+        )
+        
+        db.session.add(new_event)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'plate': first_plate,
+            'event': event_type,
+            'confidence': confidence,
+            'total_detected': len(results),
+            'all_plates': [r['plate_number'] for r in results]
+        })
+    
+    except Exception as e:
+        print(f"Error in detect_plate: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/occupancy', methods=['GET'])
