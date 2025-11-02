@@ -81,6 +81,11 @@ garage-iot/
 
 ## Usage Examples
 
+### License Detection
+```bash
+python license-detector/main.py
+```
+
 ### ESP32 Integration
 
 **Update Slot Occupancy:**

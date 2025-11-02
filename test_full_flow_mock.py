@@ -5,7 +5,7 @@ Test script for the complete license plate detection flow
 import requests
 import json
 
-ESP32_IP = "http://192.168.1.10"
+ESP32_IP = "http://localhost:81"
 
 # Test 1: Check mock ESP32
 print("=" * 70)

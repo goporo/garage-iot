@@ -1,5 +1,6 @@
+
 from flask import Flask, request, jsonify, render_template
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import os
 import sys
 
@@ -13,20 +14,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Import models and initialize database
 from models import db, Slot, OccupancyHistory, CarEvent
 
-# Import license plate detector
+
+
+# Import license plate detector using sys.path and cwd trick for hyphenated folder
 license_detector_path = os.path.join(basedir, 'license-detector')
 sys.path.append(license_detector_path)
-
-# Change working directory to license-detector to use its YOLO model
 original_cwd = os.getcwd()
 os.chdir(license_detector_path)
-
 from main import LicensePlateDetector
-
-# Initialize license plate detector (in license-detector context)
 detector = LicensePlateDetector()
-
-# Change back to original directory
 os.chdir(original_cwd)
 
 db.init_app(app)
@@ -82,13 +78,13 @@ def update_occupancy():
         # Only update if status changed
         if slot.occupied != occupied:
             slot.occupied = occupied
-            slot.updated_at = datetime.utcnow()
+            slot.updated_at = datetime.utcnow() + timedelta(hours=7)
             
             # Log history
             history = OccupancyHistory(
                 slot_id=slot_id,
                 occupied=occupied,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow() + timedelta(hours=7)
             )
             
             db.session.add(history)
@@ -116,7 +112,7 @@ def add_car_event():
         new_event = CarEvent(
             plate=plate,
             event=event,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow() + timedelta(hours=7)
         )
         
         db.session.add(new_event)
@@ -151,8 +147,12 @@ def detect_plate():
         
         # Process image to detect license plates
         print("Processing image for license plate detection...")
-        results = detector.process_image(image, save_result=True, 
-                                        output_path=os.path.join(basedir, 'data', f'esp32_capture_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.jpg'))
+        now_gmt7 = datetime.utcnow() + timedelta(hours=7)
+        results = detector.process_image(
+            image,
+            save_result=True,
+            output_path=os.path.join(basedir, 'data', f'esp32_capture_{now_gmt7.strftime("%Y%m%d_%H%M%S")}.jpg')
+        )
         
         if not results:
             return jsonify({'error': 'No license plate detected', 'success': False}), 200
@@ -167,7 +167,7 @@ def detect_plate():
         new_event = CarEvent(
             plate=first_plate,
             event=event_type,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow() + timedelta(hours=7)
         )
         
         db.session.add(new_event)
@@ -275,7 +275,7 @@ def dashboard():
 # Health check
 @app.route('/health')
 def health():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.utcnow().isoformat()})
+    return jsonify({'status': 'healthy', 'timestamp': (datetime.utcnow() + timedelta(hours=7)).isoformat()})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
