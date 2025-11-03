@@ -46,8 +46,8 @@ class GarageDashboard {
       const response = await fetch('/api/map');
       if (!response.ok) throw new Error('Failed to fetch map');
 
-      const data = await response.json();
-      this.renderGarageMap(data);
+      const slots = await response.json();
+      this.renderGarageMap(slots);
     } catch (error) {
       console.error('Error updating garage map:', error);
       document.getElementById('garage-map').innerHTML = '<div class="loading">Error loading garage map</div>';
@@ -56,43 +56,18 @@ class GarageDashboard {
 
   renderGarageMap(mapData) {
     const container = document.getElementById('garage-map');
-
-    // Set grid layout
-    container.style.gridTemplateColumns = `repeat(${mapData.cols}, 1fr)`;
-    container.style.gridTemplateRows = `repeat(${mapData.rows}, 1fr)`;
-
-    // Create a 2D array to organize slots
-    const grid = Array(mapData.rows).fill().map(() => Array(mapData.cols).fill(null));
-
-    // Fill grid with slots
-    mapData.slots.forEach(slot => {
-      if (slot.x < mapData.cols && slot.y < mapData.rows) {
-        grid[slot.y][slot.x] = slot;
-      }
-    });
-
-    // Render grid
     container.innerHTML = '';
-    grid.forEach((row, y) => {
-      row.forEach((slot, x) => {
-        const slotElement = document.createElement('div');
-        slotElement.className = 'parking-slot';
-
-        if (slot) {
-          slotElement.textContent = slot.slot_id;
-          slotElement.classList.add(slot.occupied ? 'occupied' : 'available');
-          slotElement.title = `${slot.slot_id}: ${slot.occupied ? 'Occupied' : 'Available'}`;
-
-          // Add click handler for slot details
-          slotElement.addEventListener('click', () => {
-            this.showSlotDetails(slot);
-          });
-        } else {
-          slotElement.style.visibility = 'hidden';
-        }
-
-        container.appendChild(slotElement);
+    // Render all slots in a row
+    mapData.forEach(slot => {
+      const slotElement = document.createElement('div');
+      slotElement.className = 'parking-slot';
+      slotElement.textContent = slot.slot_id;
+      slotElement.classList.add(slot.occupied ? 'occupied' : 'available');
+      slotElement.title = `${slot.slot_id}: ${slot.occupied ? 'Occupied' : 'Available'}`;
+      slotElement.addEventListener('click', () => {
+        this.showSlotDetails(slot);
       });
+      container.appendChild(slotElement);
     });
   }
 
@@ -117,15 +92,46 @@ class GarageDashboard {
       return;
     }
 
-    container.innerHTML = events.map(event => `
-            <div class="log-entry">
-                <div>
-                    <span class="log-plate">${event.plate}</span>
-                    <span class="log-event ${event.event}">${event.event}</span>
-                </div>
-                <div class="log-time">${this.formatTime(event.timestamp)}</div>
-            </div>
-        `).join('');
+    container.innerHTML = events.map((event, idx) => `
+      <div class="log-entry">
+        <div>
+          <span class="log-plate">${event.plate}</span>
+          <span class="log-event ${event.event}">${event.event}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; position:relative;">
+          <span class="log-time">${this.formatTime(event.timestamp)}</span>
+          ${event.image_path ? `
+            <button class="view-image-btn" data-img="${event.image_path}">View</button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+
+    // Modal logic
+    const modal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-img');
+    const closeModal = document.getElementById('close-modal');
+    document.querySelectorAll('.view-image-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const imgSrc = btn.getAttribute('data-img');
+        modalImg.src = imgSrc;
+        modal.style.display = 'flex';
+      });
+    });
+    if (closeModal) {
+      closeModal.onclick = () => {
+        modal.style.display = 'none';
+        modalImg.src = '';
+      };
+    }
+    if (modal) {
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          modal.style.display = 'none';
+          modalImg.src = '';
+        }
+      };
+    }
   }
 
   async updateOccupancyHistory() {
@@ -166,23 +172,19 @@ class GarageDashboard {
     const status = slot.occupied ? 'Occupied' : 'Available';
     const lastUpdate = slot.updated_at ? this.formatTime(slot.updated_at) : 'Unknown';
 
-    alert(`Slot Details:\n\nSlot ID: ${slot.slot_id}\nStatus: ${status}\nPosition: (${slot.x}, ${slot.y})\nLast Updated: ${lastUpdate}`);
+    alert(`Slot Details:\n\nSlot ID: ${slot.slot_id}\nStatus: ${status}\nLast Updated: ${lastUpdate}`);
   }
 
   formatTime(timestamp) {
     const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Vietnamese format: HH:mm DD/MM/YYYY (no seconds)
+    const pad = n => n.toString().padStart(2, '0');
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const day = pad(date.getDate());
+    const month = pad(date.getMonth() + 1);
+    const year = date.getFullYear().toString().slice(-2);
+    return `${hours}:${minutes} ${day}/${month}/${year}`;
   }
 
   startAutoRefresh() {

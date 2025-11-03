@@ -72,3 +72,58 @@ try:
     print("\n✓ Successfully retrieved car log")
 except Exception as e:
     print(f"✗ Failed to get car log: {e}\n")
+
+# Test 5: Slot 2 reports occupied (car just entered)
+print("\n" + "=" * 70)
+print("Test 5: Slot 2 Occupied After Entry")
+print("=" * 70)
+try:
+    response = requests.post(
+        "http://localhost:5000/api/update",
+        json={"slot_id": "2", "occupied": True},
+        headers={"Content-Type": "application/json"}
+    )
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.json()}")
+    print("✓ Slot 2 marked as occupied\n")
+except Exception as e:
+    print(f"✗ Failed to update slot 2: {e}\n")
+
+# Test 6: Slot 2 available and car exit event
+print("\n" + "=" * 70)
+print("Test 6: Slot 2 Available, Car Exit Event")
+print("=" * 70)
+try:
+    # Slot 2 available
+    response = requests.post(
+        "http://localhost:5000/api/update",
+        json={"slot_id": "2", "occupied": False},
+        headers={"Content-Type": "application/json"}
+    )
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.json()}")
+    print("✓ Slot 2 marked as available\n")
+
+    # Log car exit event (simulate same plate as last entry if available)
+    last_plate = None
+    try:
+        logs = requests.get("http://localhost:5000/api/car_log").json()
+        for log in logs:
+            if log['event'] == 'enter':
+                last_plate = log['plate']
+                break
+    except Exception:
+        pass
+    if last_plate:
+        response = requests.post(
+            "http://localhost:5000/api/car_event",
+            json={"plate": last_plate, "event": "exit"},
+            headers={"Content-Type": "application/json"}
+        )
+        print(f"Exit event status: {response.status_code}")
+        print(f"Exit event response: {response.json()}")
+        print("✓ Car exit event logged\n")
+    else:
+        print("✗ Could not find last entered plate to log exit event\n")
+except Exception as e:
+    print(f"✗ Failed to update slot 2 or log exit: {e}\n")

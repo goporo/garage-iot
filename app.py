@@ -1,5 +1,5 @@
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from datetime import datetime, timedelta, timezone
 import os
 import sys
@@ -35,23 +35,14 @@ with app.app_context():
     # Initialize with default slots if empty
     if Slot.query.count() == 0:
         default_slots = [
-            {'slot_id': 'A1', 'x': 0, 'y': 0},
-            {'slot_id': 'A2', 'x': 1, 'y': 0},
-            {'slot_id': 'A3', 'x': 2, 'y': 0},
-            {'slot_id': 'A4', 'x': 3, 'y': 0},
-            {'slot_id': 'A5', 'x': 4, 'y': 0},
-            {'slot_id': 'B1', 'x': 0, 'y': 1},
-            {'slot_id': 'B2', 'x': 1, 'y': 1},
-            {'slot_id': 'B3', 'x': 2, 'y': 1},
-            {'slot_id': 'B4', 'x': 3, 'y': 1},
-            {'slot_id': 'B5', 'x': 4, 'y': 1},
+            {'slot_id': '1'},
+            {'slot_id': '2'},
+            {'slot_id': '3'},
+            {'slot_id': '4'},
         ]
-        
         for slot_data in default_slots:
             slot = Slot(
                 slot_id=slot_data['slot_id'],
-                x=slot_data['x'],
-                y=slot_data['y'],
                 occupied=False
             )
             db.session.add(slot)
@@ -148,10 +139,12 @@ def detect_plate():
         # Process image to detect license plates
         print("Processing image for license plate detection...")
         now_gmt7 = datetime.utcnow() + timedelta(hours=7)
+        image_filename = f'esp32_capture_{now_gmt7.strftime("%Y%m%d_%H%M%S")}.jpg'
+        image_path = os.path.join(basedir, 'data', image_filename)
         results = detector.process_image(
             image,
             save_result=True,
-            output_path=os.path.join(basedir, 'data', f'esp32_capture_{now_gmt7.strftime("%Y%m%d_%H%M%S")}.jpg')
+            output_path=image_path
         )
         
         if not results:
@@ -163,28 +156,33 @@ def detect_plate():
         
         print(f"Detected plate: {first_plate} (confidence: {confidence})")
         
-        # Log car event
+        # Log car event with image_path (relative to /data for serving)
+        rel_image_uri = f'/data/{image_filename}'
         new_event = CarEvent(
             plate=first_plate,
             event=event_type,
-            timestamp=datetime.utcnow() + timedelta(hours=7)
+            timestamp=datetime.utcnow() + timedelta(hours=7),
+            image_path=rel_image_uri
         )
-        
         db.session.add(new_event)
         db.session.commit()
-        
         return jsonify({
             'success': True,
             'plate': first_plate,
             'event': event_type,
             'confidence': confidence,
             'total_detected': len(results),
-            'all_plates': [r['plate_number'] for r in results]
+            'all_plates': [r['plate_number'] for r in results],
+            'image_path': rel_image_uri
         })
-    
     except Exception as e:
         print(f"Error in detect_plate: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# Serve images from /data directory
+@app.route('/data/<path:filename>')
+def serve_data_file(filename):
+    return send_from_directory(os.path.join(basedir, 'data'), filename)
 
 @app.route('/api/occupancy', methods=['GET'])
 def get_occupancy():
@@ -219,19 +217,7 @@ def get_map():
     """Layout map of garage with occupancy"""
     try:
         slots = Slot.query.all()
-        
-        # Calculate grid dimensions
-        max_x = max(slot.x for slot in slots) if slots else 0
-        max_y = max(slot.y for slot in slots) if slots else 0
-        
-        layout = {
-            'rows': max_y + 1,
-            'cols': max_x + 1,
-            'slots': [slot.as_dict() for slot in slots]
-        }
-        
-        return jsonify(layout)
-    
+        return jsonify([slot.as_dict() for slot in slots])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

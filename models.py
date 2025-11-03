@@ -10,8 +10,7 @@ class Slot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     slot_id = db.Column(db.String(10), unique=True, nullable=False)
     occupied = db.Column(db.Boolean, default=False, nullable=False)
-    x = db.Column(db.Integer, nullable=False)  # Grid position X
-    y = db.Column(db.Integer, nullable=False)  # Grid position Y
+    # Removed x and y fields for simplicity
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def as_dict(self):
@@ -19,8 +18,6 @@ class Slot(db.Model):
             'id': self.id,
             'slot_id': self.slot_id,
             'occupied': self.occupied,
-            'x': self.x,
-            'y': self.y,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
     
@@ -55,13 +52,15 @@ class CarEvent(db.Model):
     plate = db.Column(db.String(20), nullable=False)
     event = db.Column(db.String(10), nullable=False)  # 'enter' or 'exit'
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    image_path = db.Column(db.String(256), nullable=True)  # Path to captured image
     
     def as_dict(self):
         return {
             'id': self.id,
             'plate': self.plate,
             'event': self.event,
-            'timestamp': self.timestamp.isoformat()
+            'timestamp': self.timestamp.isoformat(),
+            'image_path': self.image_path
         }
     
     def __repr__(self):

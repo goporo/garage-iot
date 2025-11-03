@@ -110,7 +110,8 @@
     }
 
     .garage-map {
-      display: grid;
+      display: flex;
+      flex-direction: row;
       gap: 0.5rem;
       margin: 1rem 0;
       justify-content: center;
@@ -239,7 +240,7 @@
   <div class="container">
     <div class="header">
       <h1>🚗 IoT Garage Dashboard</h1>
-      <p>Real-time parking management system</p>
+      <p>Simple parking management system</p>
     </div>
 
     <div class="stats-grid">
@@ -279,14 +280,44 @@
     </div>
 
     <div class="section">
-      <h2>📈 Recent Occupancy Changes</h2>
+      <h2>📈 Recent Slot Changes</h2>
       <div id="occupancy-history" class="log-container">
-        <div class="loading">Loading occupancy history...</div>
+        <div class="loading">Loading slot history...</div>
       </div>
     </div>
   </div>
 
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+
+<!-- Modal for image preview -->
+<div id="image-modal"
+  style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <span id="close-modal"
+    style="position:absolute;top:30px;right:50px;font-size:2rem;color:white;cursor:pointer;">&times;</span>
+  <img id="modal-img" src="" alt="Car Event Image"
+    style="max-width:90vw;max-height:80vh;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5);background:white;">
+</div>
+
+<style>
+  .view-image-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 0.3rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+    position: relative;
+  }
+
+  .view-image-btn:hover {
+    background: #764ba2;
+  }
+
+  /* Removed hover preview for image button */
+</style>
 </body>
 
 </html>
