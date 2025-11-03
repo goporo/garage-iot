@@ -2,10 +2,12 @@
 Test script for the complete license plate detection flow
 """
 
+import os
 import requests
 import json
 
-ESP32_IP = "http://localhost:81"
+# Get ESP32 camera URL from environment variable, with a default fallback
+ESP32_IP = os.getenv("ESP32_CAMERA_URL", "http://localhost")
 
 # Test 1: Check mock ESP32
 print("=" * 70)

@@ -187,10 +187,11 @@ class GarageDashboard {
   }
 
   startAutoRefresh() {
-    // Refresh every 30 seconds
+    // Get refresh interval from environment or fallback to 3000ms
+    const refreshInterval = window.ENV?.REFRESH_INTERVAL || 3000;
     this.refreshInterval = setInterval(() => {
       this.refreshData();
-    }, 30000);
+    }, refreshInterval);
   }
 
   stopAutoRefresh() {

@@ -14,6 +14,7 @@ python app.py
 |--------|--------------------|--------------------------|
 | POST   | /api/update        | `{ "slot_id": "1", "occupied": true }` |
 | POST   | /api/car_event     | `{ "plate": "ABC123", "event": "enter" }` |
+| POST   | /api/detect_plate
 | GET    | /api/occupancy     | `[ { "slot_id": "1", "occupied": true }, ... ]` |
 | GET    | /api/summary       | `{ "total": 4, "occupied": 1, "available": 3, "occupancy_rate": 25.0 }` |
 | GET    | /api/map           | `[ { "slot_id": "1", "occupied": false, ... }, ... ]` |

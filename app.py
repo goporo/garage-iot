@@ -3,6 +3,11 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from datetime import datetime, timedelta, timezone
 import os
 import sys
+from dotenv import load_dotenv
+import threading
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -116,68 +121,70 @@ def add_car_event():
 
 @app.route('/api/detect_plate', methods=['POST'])
 def detect_plate():
-    """Fetch image from ESP32, detect license plate, and log car event"""
+    """Trigger async license plate detection from ESP32 camera"""
     try:
         if detector is None:
             return jsonify({'error': 'License plate detector not initialized'}), 500
-        
-        # Get event type from request (default to 'enter')
-        data = request.get_json() if request.is_json else {}
+
+        data = request.get_json(silent=True) or {}
         event_type = data.get('event', 'enter')
-        esp32_url = data.get('esp32_url', 'http://192.168.5.32:81')
-        
         if event_type not in ['enter', 'exit']:
             return jsonify({'error': 'Event must be "enter" or "exit"'}), 400
-        
-        # Fetch image from ESP32
-        print(f"Fetching image from ESP32: {esp32_url}")
-        image = detector.fetch_esp32_image(esp32_url)
-        
-        if image is None:
-            return jsonify({'error': 'Failed to fetch image from ESP32'}), 500
-        
-        # Process image to detect license plates
-        print("Processing image for license plate detection...")
-        now_gmt7 = datetime.utcnow() + timedelta(hours=7)
-        image_filename = f'esp32_capture_{now_gmt7.strftime("%Y%m%d_%H%M%S")}.jpg'
-        image_path = os.path.join(basedir, 'data', image_filename)
-        results = detector.process_image(
-            image,
-            save_result=True,
-            output_path=image_path
-        )
-        
-        if not results:
-            return jsonify({'error': 'No license plate detected', 'success': False}), 200
-        
-        # Get the first detected plate
-        first_plate = results[0]['plate_number']
-        confidence = results[0]['confidence']
-        
-        print(f"Detected plate: {first_plate} (confidence: {confidence})")
-        
-        # Log car event with image_path (relative to /data for serving)
-        rel_image_uri = f'/data/{image_filename}'
-        new_event = CarEvent(
-            plate=first_plate,
-            event=event_type,
-            timestamp=datetime.utcnow() + timedelta(hours=7),
-            image_path=rel_image_uri
-        )
-        db.session.add(new_event)
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'plate': first_plate,
-            'event': event_type,
-            'confidence': confidence,
-            'total_detected': len(results),
-            'all_plates': [r['plate_number'] for r in results],
-            'image_path': rel_image_uri
-        })
+
+        esp32_url = os.getenv('ESP32_CAMERA_URL', 'http://192.168.1.19/capture')
+
+        # Do the heavy work in a background thread
+        threading.Thread(
+            target=process_plate_detection,
+            args=(esp32_url, event_type),
+            daemon=True
+        ).start()
+
+        # Respond immediately
+        return jsonify({'status': 'processing', 'event': event_type}), 202
+
     except Exception as e:
-        print(f"Error in detect_plate: {str(e)}")
+        print(f"Error in detect_plate trigger: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+def process_plate_detection(esp32_url, event_type):
+    """Background worker for actual image detection."""
+    with app.app_context():  # <-- add this
+        try:
+            print(f"[Worker] Fetching image from ESP32: {esp32_url}")
+            image = detector.fetch_esp32_image(esp32_url)
+            if image is None:
+                print("[Worker] Failed to fetch image")
+                return
+
+            print("[Worker] Processing image...")
+            now_gmt7 = datetime.utcnow() + timedelta(hours=7)
+            image_filename = f'esp32_capture_{now_gmt7.strftime('%Y%m%d_%H%M%S')}.jpg'
+            image_path = os.path.join(basedir, 'data', image_filename)
+
+            results = detector.process_image(image, save_result=True, output_path=image_path)
+            if not results:
+                print("[Worker] No license plate detected")
+                return
+
+            first_plate = results[0]['plate_number']
+            confidence = results[0]['confidence']
+            rel_image_uri = f'/data/{image_filename}'
+
+            new_event = CarEvent(
+                plate=first_plate,
+                event=event_type,
+                timestamp=datetime.utcnow() + timedelta(hours=7),
+                image_path=rel_image_uri
+            )
+            db.session.add(new_event)
+            db.session.commit()
+            print(f"[Worker] Saved event for plate {first_plate} ({confidence:.2f})")
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Worker Error] {e}")
 
 # Serve images from /data directory
 @app.route('/data/<path:filename>')
@@ -256,7 +263,8 @@ def get_car_log():
 @app.route('/')
 def dashboard():
     """Renders dashboard (HTML+JS)"""
-    return render_template('dashboard.html')
+    refresh_interval = int(os.getenv('DASHBOARD_REFRESH_INTERVAL', 3000))
+    return render_template('dashboard.html', refresh_interval=refresh_interval)
 
 # Health check
 @app.route('/health')
