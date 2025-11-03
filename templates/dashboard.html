@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IoT Garage Dashboard</title>
+  <title>Bảng điều khiển Garage IoT</title>
   <style>
     * {
       margin: 0;
@@ -239,50 +239,46 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚗 IoT Garage Dashboard</h1>
-      <p>Simple parking management system</p>
+      <h1>🚗 Bảng điều khiển Garage IoT</h1>
+      <p>Hệ thống quản lý bãi xe đơn giản</p>
     </div>
 
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-value total" id="total-slots">-</div>
-        <div class="stat-label">Total Slots</div>
+        <div class="stat-label">Tổng số chỗ</div>
       </div>
       <div class="stat-card">
         <div class="stat-value occupied" id="occupied-slots">-</div>
-        <div class="stat-label">Occupied</div>
+        <div class="stat-label">Đã có xe</div>
       </div>
       <div class="stat-card">
         <div class="stat-value available" id="available-slots">-</div>
-        <div class="stat-label">Available</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value rate" id="occupancy-rate">-</div>
-        <div class="stat-label">Occupancy Rate</div>
+        <div class="stat-label">Còn trống</div>
       </div>
     </div>
 
     <div class="dashboard-grid">
       <div class="section">
-        <h2>🗺️ Garage Map</h2>
-        <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+        <h2>🗺️ Sơ đồ Garage</h2>
+        <button class="refresh-btn" onclick="refreshData()">🔄 Làm mới</button>
         <div id="garage-map" class="garage-map">
-          <div class="loading">Loading garage map...</div>
+          <div class="loading">Đang tải sơ đồ garage...</div>
         </div>
       </div>
 
       <div class="section">
-        <h2>🚗 Recent Car Events</h2>
+        <h2>🚗 Sự kiện xe gần đây</h2>
         <div id="car-log" class="log-container">
-          <div class="loading">Loading car events...</div>
+          <div class="loading">Đang tải sự kiện xe...</div>
         </div>
       </div>
     </div>
 
     <div class="section">
-      <h2>📈 Recent Slot Changes</h2>
+      <h2>📈 Thay đổi chỗ gần đây</h2>
       <div id="occupancy-history" class="log-container">
-        <div class="loading">Loading slot history...</div>
+        <div class="loading">Đang tải lịch sử chỗ...</div>
       </div>
     </div>
   </div>

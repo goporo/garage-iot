@@ -20,8 +20,8 @@ class GarageDashboard {
         this.updateOccupancyHistory()
       ]);
     } catch (error) {
-      console.error('Error refreshing data:', error);
-      this.showError('Failed to refresh data. Please try again.');
+      console.error('Lỗi làm mới dữ liệu:', error);
+      this.showError('Lỗi làm mới dữ liệu. Vui lòng thử lại.');
     }
   }
 
@@ -35,7 +35,6 @@ class GarageDashboard {
       document.getElementById('total-slots').textContent = data.total;
       document.getElementById('occupied-slots').textContent = data.occupied;
       document.getElementById('available-slots').textContent = data.available;
-      document.getElementById('occupancy-rate').textContent = `${data.occupancy_rate}%`;
     } catch (error) {
       console.error('Error updating summary:', error);
     }
@@ -49,8 +48,8 @@ class GarageDashboard {
       const slots = await response.json();
       this.renderGarageMap(slots);
     } catch (error) {
-      console.error('Error updating garage map:', error);
-      document.getElementById('garage-map').innerHTML = '<div class="loading">Error loading garage map</div>';
+      console.error('Lỗi cập nhật sơ đồ garage:', error);
+      document.getElementById('garage-map').innerHTML = '<div class="loading">Lỗi tải sơ đồ garage</div>';
     }
   }
 
@@ -63,7 +62,7 @@ class GarageDashboard {
       slotElement.className = 'parking-slot';
       slotElement.textContent = slot.slot_id;
       slotElement.classList.add(slot.occupied ? 'occupied' : 'available');
-      slotElement.title = `${slot.slot_id}: ${slot.occupied ? 'Occupied' : 'Available'}`;
+      slotElement.title = `${slot.slot_id}: ${slot.occupied ? 'Đã có xe' : 'Còn trống'}`;
       slotElement.addEventListener('click', () => {
         this.showSlotDetails(slot);
       });
@@ -79,8 +78,8 @@ class GarageDashboard {
       const data = await response.json();
       this.renderCarLog(data);
     } catch (error) {
-      console.error('Error updating car log:', error);
-      document.getElementById('car-log').innerHTML = '<div class="loading">Error loading car events</div>';
+      console.error('Lỗi cập nhật nhật ký xe:', error);
+      document.getElementById('car-log').innerHTML = '<div class="loading">Lỗi tải sự kiện xe</div>';
     }
   }
 
@@ -88,7 +87,7 @@ class GarageDashboard {
     const container = document.getElementById('car-log');
 
     if (events.length === 0) {
-      container.innerHTML = '<div class="loading">No car events recorded</div>';
+      container.innerHTML = '<div class="loading">Không có sự kiện xe nào được ghi lại</div>';
       return;
     }
 
@@ -101,7 +100,7 @@ class GarageDashboard {
         <div style="display: flex; align-items: center; gap: 0.5rem; position:relative;">
           <span class="log-time">${this.formatTime(event.timestamp)}</span>
           ${event.image_path ? `
-            <button class="view-image-btn" data-img="${event.image_path}">View</button>
+            <button class="view-image-btn" data-img="${event.image_path}">Xem</button>
           ` : ''}
         </div>
       </div>
@@ -142,8 +141,8 @@ class GarageDashboard {
       const data = await response.json();
       this.renderOccupancyHistory(data);
     } catch (error) {
-      console.error('Error updating occupancy history:', error);
-      document.getElementById('occupancy-history').innerHTML = '<div class="loading">Error loading occupancy history</div>';
+      console.error('Lỗi cập nhật lịch sử chỗ:', error);
+      document.getElementById('occupancy-history').innerHTML = '<div class="loading">Lỗi tải lịch sử chỗ</div>';
     }
   }
 
@@ -151,7 +150,7 @@ class GarageDashboard {
     const container = document.getElementById('occupancy-history');
 
     if (history.length === 0) {
-      container.innerHTML = '<div class="loading">No occupancy changes recorded</div>';
+      container.innerHTML = '<div class="loading">Không có thay đổi chỗ nào được ghi lại</div>';
       return;
     }
 
@@ -160,7 +159,7 @@ class GarageDashboard {
                 <div>
                     <span class="log-plate">${entry.slot_id}</span>
                     <span class="log-event ${entry.occupied ? 'enter' : 'exit'}">
-                        ${entry.occupied ? 'Occupied' : 'Available'}
+                        ${entry.occupied ? 'Đã có xe' : 'Còn trống'}
                     </span>
                 </div>
                 <div class="log-time">${this.formatTime(entry.timestamp)}</div>
@@ -169,10 +168,10 @@ class GarageDashboard {
   }
 
   showSlotDetails(slot) {
-    const status = slot.occupied ? 'Occupied' : 'Available';
-    const lastUpdate = slot.updated_at ? this.formatTime(slot.updated_at) : 'Unknown';
+    const status = slot.occupied ? 'Đã có xe' : 'Còn trống';
+    const lastUpdate = slot.updated_at ? this.formatTime(slot.updated_at) : 'Không rõ';
 
-    alert(`Slot Details:\n\nSlot ID: ${slot.slot_id}\nStatus: ${status}\nLast Updated: ${lastUpdate}`);
+    alert(`Chi tiết chỗ:\n\nID chỗ: ${slot.slot_id}\nTrạng thái: ${status}\nCập nhật lần cuối: ${lastUpdate}`);
   }
 
   formatTime(timestamp) {
