@@ -8,7 +8,35 @@ class GarageDashboard {
 
   async init() {
     await this.refreshData();
+    this.setupDetectPlateButton();
     this.startAutoRefresh();
+  }
+  setupDetectPlateButton() {
+    // If you have a button to trigger detect_plate, hook here
+    const btn = document.getElementById('detect-plate-btn');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Đang nhận diện...';
+        try {
+          const resp = await fetch('/api/detect_plate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'enter' }) });
+          if (resp.ok) {
+            // Immediately refresh summary and map to reflect slot reduction
+            await Promise.all([
+              this.updateSummary(),
+              this.updateGarageMap()
+            ]);
+            this.showError('Đã nhận diện, đang xử lý...');
+          } else {
+            this.showError('Lỗi nhận diện biển số');
+          }
+        } catch (e) {
+          this.showError('Lỗi gửi yêu cầu nhận diện');
+        }
+        btn.disabled = false;
+        btn.textContent = 'Nhận diện biển số';
+      });
+    }
   }
 
   async refreshData() {
@@ -27,11 +55,10 @@ class GarageDashboard {
 
   async updateSummary() {
     try {
+      // Use backend summary for consistent UI
       const response = await fetch('/api/summary');
       if (!response.ok) throw new Error('Failed to fetch summary');
-
       const data = await response.json();
-
       document.getElementById('total-slots').textContent = data.total;
       document.getElementById('occupied-slots').textContent = data.occupied;
       document.getElementById('available-slots').textContent = data.available;

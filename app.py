@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from datetime import datetime, timedelta, timezone
 import os
@@ -7,6 +6,8 @@ from dotenv import load_dotenv
 import threading
 
 # Load environment variables
+TOTAL_SLOT = 4  # Total parking slots in the garage
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -53,8 +54,10 @@ with app.app_context():
             db.session.add(slot)
         db.session.commit()
 
-# API Routes
+# Track pending reservations (count only, not specific slots)
+pending_reservations = 0
 
+# API Routes
 @app.route('/api/update', methods=['POST'])
 def update_occupancy():
     """ESP32 posts occupancy update"""
@@ -75,17 +78,14 @@ def update_occupancy():
         if slot.occupied != occupied:
             slot.occupied = occupied
             slot.updated_at = datetime.utcnow() + timedelta(hours=7)
-            
             # Log history
             history = OccupancyHistory(
                 slot_id=slot_id,
                 occupied=occupied,
                 timestamp=datetime.utcnow() + timedelta(hours=7)
             )
-            
             db.session.add(history)
             db.session.commit()
-        
         return jsonify({'success': True, 'slot_id': slot_id, 'occupied': occupied})
     
     except Exception as e:
@@ -94,6 +94,7 @@ def update_occupancy():
 @app.route('/api/car_event', methods=['POST'])
 def add_car_event():
     """ESP32 (camera or sensor) logs entry/exit with license"""
+    global pending_reservations
     try:
         data = request.get_json()
         plate = data.get('plate')
@@ -114,6 +115,10 @@ def add_car_event():
         db.session.add(new_event)
         db.session.commit()
         
+        # Decrement pending reservations when car exits (increase available slots)
+        if event == 'exit':
+            pending_reservations = max(pending_reservations - 1, 0)
+        
         return jsonify({'success': True, 'plate': plate, 'event': event})
     
     except Exception as e:
@@ -122,6 +127,7 @@ def add_car_event():
 @app.route('/api/detect_plate', methods=['POST'])
 def detect_plate():
     """Trigger async license plate detection from ESP32 camera"""
+    global pending_reservations
     try:
         if detector is None:
             return jsonify({'error': 'License plate detector not initialized'}), 500
@@ -133,6 +139,10 @@ def detect_plate():
 
         esp32_url = os.getenv('ESP32_CAMERA_URL', 'http://192.168.1.19/capture')
 
+        # Increment pending reservations immediately (reduce available count)
+        if event_type == 'enter':
+            pending_reservations = min(TOTAL_SLOT, pending_reservations + 1)
+        
         # Do the heavy work in a background thread
         threading.Thread(
             target=process_plate_detection,
@@ -142,11 +152,9 @@ def detect_plate():
 
         # Respond immediately
         return jsonify({'status': 'processing', 'event': event_type}), 202
-
     except Exception as e:
         print(f"Error in detect_plate trigger: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 def process_plate_detection(esp32_url, event_type):
     """Background worker for actual image detection."""
@@ -160,7 +168,7 @@ def process_plate_detection(esp32_url, event_type):
 
             print("[Worker] Processing image...")
             now_gmt7 = datetime.utcnow() + timedelta(hours=7)
-            image_filename = f'esp32_capture_{now_gmt7.strftime('%Y%m%d_%H%M%S')}.jpg'
+            image_filename = f'esp32_capture_{now_gmt7.strftime("%Y%m%d_%H%M%S")}.jpg'
             image_path = os.path.join(basedir, 'data', image_filename)
 
             results = detector.process_image(image, save_result=True, output_path=image_path)
@@ -205,17 +213,18 @@ def get_occupancy():
 def get_summary():
     """Aggregated stats (total, occupied, available)"""
     try:
-        total = Slot.query.count()
-        occupied = Slot.query.filter_by(occupied=True).count()
+        # Use only in-memory counters for summary
+        global pending_reservations
+        # Initial slot count is fixed at startup
+        total = TOTAL_SLOT
+        occupied = pending_reservations
         available = total - occupied
-        
         return jsonify({
             'total': total,
             'occupied': occupied,
             'available': available,
             'occupancy_rate': round((occupied / total * 100) if total > 0 else 0, 2)
         })
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -224,6 +233,7 @@ def get_map():
     """Layout map of garage with occupancy"""
     try:
         slots = Slot.query.all()
+        # Return actual slot status (don't mark any as occupied for pending reservations)
         return jsonify([slot.as_dict() for slot in slots])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
